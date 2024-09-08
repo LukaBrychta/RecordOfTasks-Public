@@ -1,0 +1,197 @@
+﻿@page "/tasks"
+
+@inject TaskItemService Ts;
+@inject NavigationManager Navigation;
+@inject NavigationManager NavManager;
+
+<PageTitle>Úkoly</PageTitle>
+
+<h2>@_infoMessage</h2>
+@if (_tasks == null || _tasks.Count() == 0)
+{
+
+    <h3 class="alert-danger">Žádné nalezené záznamy...</h3>
+}
+else
+{
+    <table class="table my-5">
+        <thead>
+            <tr>
+                <th>Firma</th>
+                <th>Popis</th>
+                <th>Zadavatel</th>
+                <th>Řešitel</th>
+                <th>Datum nahlášení</th>
+                <th>Stav</th>
+                <th>Priorita</th>
+                <th>Termín dokončení</th>
+                <th>Akce</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = _startPaging; i < _endPaging && i < _tasks.Count(); i++)
+            {
+                int index = i;
+                <tr>
+                    <td>
+                        <button @onclick="() => NavigateToCompany(_tasks[index].Company)" class="btn btn-outline-secondary">@_tasks[index].Company</button>
+                    </td>
+                    <td>@_tasks[index].Description</td>
+                    <td>
+                        <button @onclick="() => NavigateToCreator(_tasks[index].Creator)" class="btn btn-outline-secondary">@_tasks[index].Creator</button>
+                    </td>
+                    <td>
+                        <button @onclick="() => NavigateToAssignee(_tasks[index].Assignee)" class="btn btn-outline-secondary">@_tasks[index].Assignee</button>
+                    </td>
+                    <td>@_tasks[index].ReportedDate.ToString("d")</td>
+                    <td>@_tasks[index].Status.ToString().Replace("New", "Nový").Replace("InProgress", "Probíhá").Replace("Completed", "Dokončen")</td>
+                    <td>@_tasks[index].Priority.ToString().Replace("Low", "Nízká").Replace("Medium", "Střední").Replace("High", "Vysoká")</td>
+                    <td>@_tasks[index].DueDate.ToString("d")</td>
+                    <td>
+                        <a href="task/@_tasks[index].Id" class="btn btn-outline-success bi bi-search"></a>
+                        <a href="task/@(_tasks[index].Id)?edit=true" class="btn btn-outline-secondary bi bi-pencil-fill"></a>
+                        <button @onclick="() => _deletedTaskItem = _tasks[index]" class="btn btn-outline-danger bi bi-trash3-fill"></button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div class="d-flex justify-content-center my-3">
+        <button @onclick="() => LoadPaging(-10)" class="btn btn-outline-dark mx-2">předchozí</button>
+        <button @onclick="() => LoadPaging(10)" class="btn btn-outline-dark mx-2">další</button>
+    </div>
+}
+
+@if (_deletedTaskItem != null)
+{
+    <div class="modal d-block" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Potvrzení</h5>
+                    <button type="button" class="btn-close" @onclick="() => _deletedTaskItem = null" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Opravdu chcete tento záznam smazat?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _deletedTaskItem = null">Zrušit</button>
+                    <button type="button" class="btn btn-danger" @onclick="() => DeleteTaskItemAsync()">Smazat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Ts.ErrorMessage))
+{
+    <div class="alert alert-danger">
+        @(Ts.ErrorMessage)
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    public string all { get; set; }
+    public string company { get; set; }
+    public string creator { get; set; }
+    public string assignee { get; set; }
+    public string complete { get; set; }
+    public string afterDeadLine { get; set; }
+    public string checklistComplete { get; set; }
+
+    private List<TaskItem> _tasks = new List<TaskItem>();
+    private int _startPaging = 0;
+    private int _endPaging = 10;
+    private string _search;
+
+    private TaskItem _deletedTaskItem;
+    private string _infoMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("all", out var all) && all == "true")
+        {
+            _tasks = await Ts.GetAllTaskItemsAsync();
+            _infoMessage = "Seznam všech úkolů.";
+        }
+        else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("complete", out var complete) && complete == "false")
+        {
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("afterDeadline", out var afterDeadline) && afterDeadline == "true")
+            {
+                _tasks = await Ts.GetNotCompleteTasksAfterTheDeadlineAsync();
+                _infoMessage = "Seznam nedokončených úkolů po termínu.";
+
+            }
+            else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("checklistComplete", out var checklistComplete) && checklistComplete == "false")
+            {
+                _tasks = await Ts.GetNotCompleteTasksWithChecklistAfterTheDeadlineAsync();
+                _infoMessage = "Seznam nedokončených úkolů s nedokončeným bodem v checklistu po termínu.";
+            }
+            else
+            {
+                _tasks = await Ts.GetNotCompleteTasksAsync();
+                _infoMessage = "Seznam nedokončených úkolů.";
+            }
+
+        }
+        else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("company", out var company) && !string.IsNullOrWhiteSpace(company))
+        {
+            _tasks = await Ts.GetTaskItemsByCompanyAsync(company);
+            _infoMessage = $"Seznam všech úkolů společnosti {company}.";
+
+        }
+        else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("creator", out var creator) && !string.IsNullOrWhiteSpace(creator))
+        {
+            _tasks = await Ts.GetTaskItemsByCreatorAsync(creator);
+            _infoMessage = $"Seznam všech úkolů zadavatele {creator}.";
+
+        }
+        else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("assignee", out var assignee) && !string.IsNullOrWhiteSpace(assignee))
+        {
+            _tasks = await Ts.GetTaskItemsByAssigneeAsync(assignee);
+            _infoMessage = $"Seznam všech úkolů řešitele {assignee}.";
+        }
+        else
+        {
+            _tasks = null;
+        }
+    }
+
+    private async Task LoadPaging(int count)
+    {
+        _startPaging += count;
+        if (_startPaging < 0)
+            _startPaging = 0;
+        else if (_startPaging + 10 > _tasks.Count())
+            _startPaging = Math.Max(_tasks.Count() - 10, 0);
+
+        _endPaging = _startPaging + 10;
+    }
+
+    private async Task DeleteTaskItemAsync()
+    {
+        await Ts.DeleteTaskItemAsync(_deletedTaskItem.Id);
+        _tasks.Remove(_deletedTaskItem);
+        _deletedTaskItem = null;
+    }
+
+    private void NavigateToCompany(string company)
+    {
+        NavManager.NavigateTo($"/tasks?company={company}", true);
+    }
+
+    private void NavigateToCreator(string creator)
+    {
+        NavManager.NavigateTo($"/tasks?creator={creator}", true);
+    }
+
+    private void NavigateToAssignee(string assignee)
+    {
+        NavManager.NavigateTo($"/tasks?assignee={assignee}", true);
+    }
+}

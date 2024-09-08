@@ -1,0 +1,88 @@
+﻿@inject NavigationManager NavManager
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Record of Tasks</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/">Nový úkol</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <button @onclick="NavigateToAll" class="nav-link"> Všechny</button>
+        </div>
+        <div class="nav-item px-3">
+            <button @onclick="NavigateToNotComplete" class="nav-link"> Nedokončené</button>
+        </div>
+        <div class="nav-item px-3">
+            <button @onclick="NavigateToNotCompleteAfterDeadline" class="nav-link"> Po&nbsp;termínu</button>
+        </div>
+        <div class="nav-item px-3">
+            <button @onclick="NavigateToNotCompleteWithChecklistNotComplete" class="nav-link"> Nedokončené&nbsp;checklisty</button>
+        </div>
+        <div class="row m-1">
+            <div class="col-8 m-0">
+                <input id="company" @bind="company" class="form-control" placeholder="Společnost" />
+            </div>
+            <div class="col-4 m-0">
+                <button @onclick="NavigateToCompany" class="btn btn-light bi bi-search w-100 h-100"></button>
+            </div>
+        </div>
+        <div class="row m-1">
+            <div class="col-8 m-0">
+                <input id="creator" @bind="creator" class="form-control" placeholder="Zadavatel" />
+            </div>
+            <div class="col-4 m-0">
+                <button @onclick="NavigateToCreator" class="btn btn-light bi bi-search w-100 h-100"></button>
+            </div>
+        </div>
+        <div class="row m-1">
+            <div class="col-8 m-0">
+                <input id="assignee" @bind="assignee" class="form-control" placeholder="Řešitel" />
+            </div>
+            <div class="col-4 m-0">
+                <button @onclick="NavigateToAssignee" class="btn btn-light bi bi-search w-100 h-100"></button>
+            </div>
+        </div>
+    </nav>
+</div>
+
+@code {
+    public string company { get; set; }
+    public string creator { get; set; }
+    public string assignee { get; set; }
+
+    private void NavigateToAll()
+    {
+        NavManager.NavigateTo($"/tasks?all=true", true);
+    }
+    private void NavigateToNotComplete()
+    {
+        NavManager.NavigateTo($"/tasks?complete=false", true);
+    }
+    private void NavigateToNotCompleteAfterDeadline()
+    {
+        NavManager.NavigateTo($"/tasks?complete=false&afterDeadline=true", true);
+    }
+    private void NavigateToNotCompleteWithChecklistNotComplete()
+    {
+        NavManager.NavigateTo($"/tasks?complete=false&checklistComplete=false", true);
+    }
+    private void NavigateToCompany()
+    {
+        NavManager.NavigateTo($"/tasks?company={company}", true);
+    }
+    private void NavigateToCreator()
+    {
+        NavManager.NavigateTo($"/tasks?creator={creator}", true);
+    }
+    private void NavigateToAssignee()
+    {
+        NavManager.NavigateTo($"/tasks?assignee={assignee}", true);
+    }
+}

@@ -1,0 +1,162 @@
+﻿@inject TaskItemService Ts;
+@inject NavigationManager Navigation;
+
+@page "/"
+
+<PageTitle>Nový úkol</PageTitle>
+
+<h3>Nový úkol</h3>
+<table class="table mb-5">
+    <thead>
+        <tr>
+            <th>Firma</th>
+            <th>Popis</th>
+            <th>Zadavatel</th>
+            <th>Řešitel</th>
+            <th>Stav</th>
+            <th>Priorita</th>
+            <th>Termín vyřešení</th>
+            <th>Akce</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <input id="Company" @bind="_newTaskItem.Company" class="form-control" />
+            </td>
+            <td>
+                <input id="Description" @bind="_newTaskItem.Description" class="form-control" />
+            </td>
+            <td>
+                <input id="Creator" @bind="_newTaskItem.Creator" class="form-control" />
+            </td>
+            <td>
+                <input id="Assignee" @bind="_newTaskItem.Assignee" class="form-control" />
+            </td>
+            <td>
+                <select id="Status" @bind="_newTaskItem.Status" class="form-control">
+                    <option value="@TaskItem.StatusLevel.New">Nový</option>
+                    <option value="@TaskItem.StatusLevel.InProgress">Probíhá</option>
+                    <option value="@TaskItem.StatusLevel.Completed">Dokončen</option>
+                </select>
+            </td>
+            <td>
+                <select id="Priority" @bind="_newTaskItem.Priority" class="form-control">
+                    <option value="@TaskItem.PriorityLevel.Low">Nízká</option>
+                    <option value="@TaskItem.PriorityLevel.Medium">Střední</option>
+                    <option value="@TaskItem.PriorityLevel.High">Vysoká</option>
+                </select>
+            </td>
+            <td>
+                <input id="DueDate" type="date" @bind="_newTaskItem.DueDate" class="form-control" />
+            </td>
+            <td>
+                <button @onclick="() => CreateTaskItemAsync()" class="btn btn-outline-primary bi bi-floppy-fill"></button>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+@if (_savedTaskItem != null)
+{
+    <h3>Uložený úkol</h3>
+
+    <table class="table  mb-5">
+        <thead>
+            <tr>
+                        <th>Firma</th>
+                        <th>Popis</th>
+                        <th>Zadavatel</th>
+                        <th>Řešitel</th>
+                        <th>Datum nahlášení</th>
+                        <th>Stav</th>
+                        <th>Priorita</th>
+                        <th>Termín dokončení</th>
+                        <th>Akce</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>@_savedTaskItem.Company</td>
+                <td>@_savedTaskItem.Description</td>
+                <td>@_savedTaskItem.Creator</td>
+                <td>@_savedTaskItem.Assignee</td>
+                <td>@_savedTaskItem.ReportedDate.ToString("d")</td>
+                <td>@_savedTaskItem.Status.ToString().Replace("New", "Nový").Replace("InProgress", "Probíhá").Replace("Completed", "Dokončen")</td>
+                <td>@_savedTaskItem.Priority.ToString().Replace("Low", "Nízká").Replace("Medium", "Střední").Replace("High", "Vysoká")</td>
+                <td>@_savedTaskItem.DueDate.ToString("d")</td>
+                <td>
+                    <a href="task/@_savedTaskItem.Id" class="btn btn-outline-success bi bi-search"></a>
+                    <a href="task/@(_savedTaskItem.Id)?edit=true" class="btn btn-outline-secondary bi bi-pencil-fill"></a>
+                    <button @onclick="() => _deletedTaskITem =_savedTaskItem" class="btn btn-outline-danger bi bi-trash3-fill"></button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+}
+
+@if (_deletedTaskITem != null)
+{
+    <div class="modal d-block" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Potvrzení</h5>
+                    <button type="button" class="btn-close" @onclick="() => _deletedTaskITem = null" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Opravdu chcete tento záznam smazat?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _deletedTaskITem = null">Zrušit</button>
+                    <button type="button" class="btn btn-danger" @onclick="() => DeleteTaskItemAsync()">Smazat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Ts.ErrorMessage) || !string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-danger">
+        @(Ts.ErrorMessage)
+        @(_errorMessage)
+    </div>
+}
+
+@code {
+    private TaskItem _newTaskItem = new TaskItem();
+    private TaskItem _deletedTaskITem;
+    private TaskItem _savedTaskItem;
+    private string _errorMessage;
+
+    private async Task CreateTaskItemAsync()
+    {
+        _savedTaskItem = null;
+        await ClearErrorMessage();
+
+        if (!string.IsNullOrWhiteSpace(_newTaskItem.Company) && !string.IsNullOrWhiteSpace(_newTaskItem.Description) &&
+                !string.IsNullOrWhiteSpace(_newTaskItem.Creator) && !string.IsNullOrWhiteSpace(_newTaskItem.Assignee) &&
+                Enum.IsDefined(typeof(TaskItem.PriorityLevel), _newTaskItem.Priority) && Enum.IsDefined(typeof(TaskItem.StatusLevel), _newTaskItem.Status))
+        {
+            Ts.CreateTaskItemAsync(_newTaskItem);
+
+            _newTaskItem = new TaskItem();
+            _savedTaskItem = await Ts.GetLastTaskItemAsync();
+        }
+        else
+            _errorMessage = "error occurred";
+    }
+    private async Task DeleteTaskItemAsync()
+    {
+        await ClearErrorMessage();
+        await Ts.DeleteTaskItemAsync(_deletedTaskITem.Id);
+        _savedTaskItem = null;
+        _deletedTaskITem = null;
+    }
+    private async Task ClearErrorMessage()
+    {
+        _errorMessage = null;
+        Ts.ErrorMessage = null;
+    }
+}

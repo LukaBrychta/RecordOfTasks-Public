@@ -1,0 +1,429 @@
+﻿@page "/task/{id:int}"
+@inject TaskItemService Ts;
+@* @inject DatabaseService Ds; *@
+@inject MessageService Ms;
+@inject ChecklistItemService Chs;
+@inject NavigationManager Navigation;
+@inject Microsoft.AspNetCore.Components.NavigationManager NavManager
+
+<PageTitle>Task</PageTitle>
+
+<h3>Úkol</h3>
+
+@if (_taskItem == null)
+{
+    <p>Načítám...</p>
+}
+else
+{
+    @if (_editTaskItem == null)
+    {
+        <table class="table mb-5">
+            <thead>
+                <tr>
+                    <th>Firma</th>
+                    <th>Popis</th>
+                    <th>Zadavatel</th>
+                    <th>Řešitel</th>
+                    <th>Datum nahlášení</th>
+                    <th>Stav</th>
+                    <th>Priorita</th>
+                    <th>Termín dokončení</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>@_taskItem.Company</td>
+                    <td>@_taskItem.Description</td>
+                    <td>@_taskItem.Creator</td>
+                    <td>@_taskItem.Assignee</td>
+                    <td>@_taskItem.ReportedDate.ToString("d")</td>
+                    <td>@_taskItem.Status.ToString().Replace("New", "Nový").Replace("InProgress", "Probíhá").Replace("Completed", "Dokončen")</td>
+                    <td>@_taskItem.Priority.ToString().Replace("Low", "Nízká").Replace("Medium", "Střední").Replace("High", "Vysoká")</td>
+                    <td>@_taskItem.DueDate.ToString("d")</td>
+                    <td>
+                        <button @onclick="() => _editTaskItem = _taskItem" class="btn btn-outline-secondary bi bi-pencil-fill"></button>
+                        <button @onclick="() => _deletedTaskItem = _taskItem" class="btn btn-outline-danger bi bi-trash3-fill"></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <table class="table mb-5">
+            <thead>
+                <tr>
+                        <th>Firma</th>
+                        <th>Popis</th>
+                        <th>Zadavatel</th>
+                        <th>Řešitel</th>
+                        <th>Stav</th>
+                        <th>Priorita</th>
+                        <th>Termín dokončení</th>
+                        <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <input id="Company" @bind="_taskItem.Company" class="form-control" />
+                    </td>
+                    <td>
+                        <input id="Description" @bind="_taskItem.Description" class="form-control" />
+                    </td>
+                    <td>
+                        <input id="Creator" @bind="_taskItem.Creator" class="form-control" />
+                    </td>
+                    <td>
+                        <input id="Assignee" @bind="_taskItem.Assignee" class="form-control" />
+                    </td>
+                    <td>
+                        <select id="Status" @bind="_taskItem.Status" class="form-control">
+                            <option value="@TaskItem.StatusLevel.New">Nový</option>
+                            <option value="@TaskItem.StatusLevel.InProgress">Probíhá</option>
+                            <option value="@TaskItem.StatusLevel.Completed">Dokončen</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select id="Priority" @bind="_taskItem.Priority" class="form-control">
+                            <option value="@TaskItem.PriorityLevel.Low">Nízká</option>
+                            <option value="@TaskItem.PriorityLevel.Medium">Střední</option>
+                            <option value="@TaskItem.PriorityLevel.High">Vysoká</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input id="DueDate" type="date" @bind="_taskItem.DueDate" class="form-control" />
+                    </td>
+                    <td>
+                        <button @onclick="() => EditTaskItemAsync()" class="btn btn-outline-primary bi bi-floppy-fill"></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    }
+
+    <h3>Checklist</h3>
+    if (_editChecklistItem == null)
+    {
+        <table class="table mb-5">
+            <thead>
+                <tr>
+                    <th>Popis</th>
+                    <th>Dokončen</th>
+                    <th>Termín dokončení</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var checklistItem in _checklistItems)
+                {
+                    <tr>
+                        <td>@checklistItem.Description</td>
+                        <td>
+                            <input type="checkbox" checked="@checklistItem.IsCompleted" disabled />
+                        </td>
+                        <td>@checklistItem.DueDate.ToString("d")</td>
+                        <td>
+                            <button @onclick="() => _editChecklistItem = checklistItem" class="btn btn-outline-secondary bi bi-pencil-fill"></button>
+                            <button @onclick="() => _deletedChecklistItem = checklistItem" class="btn btn-outline-danger bi bi-trash3-fill"></button>
+                        </td>
+                    </tr>
+                }
+                <tr>
+                    <td>
+                        <input id="description" @bind="_newChecklistItem.Description" class="form-control" />
+                    </td>
+                    <td>
+                        <input id="IsCompleted" type="checkbox" @bind="_newChecklistItem.IsCompleted" class="text-center" />
+                    </td>
+                    <td>
+                        <input id="dueDate" type="date" @bind="_newChecklistItem.DueDate" class="form-control" />
+                    </td>
+                    <td>
+                        <button @onclick="() => CreateChecklistItemAsync()" class="btn btn-outline-primary bi bi-floppy-fill"></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <table class="table mb-5">
+            <thead>
+                <tr>
+                    <th>Popis</th>
+                    <th>Dokončen</th>
+                    <th>Termín dokončení</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <input id="description" @bind="_editChecklistItem.Description" class="form-control" />
+                    </td>
+                    <td>
+                        <input id="IsCompleted" type="checkbox" @bind="_editChecklistItem.IsCompleted" class="text-center" />
+                    </td>
+                    <td>
+                        <input id="dueDate" type="date" @bind="_editChecklistItem.DueDate" class="form-control" />
+                    </td>
+                    <td>
+                        <button @onclick="() => EditChecklistItemAsync()" class="btn btn-outline-primary bi bi-floppy-fill"></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    }
+    <h3>Zprávy</h3>
+    if (_editMessage == null)
+    {
+        @foreach (var message in _messages)
+        {
+            <div class="row">
+                <div class="col-10 border">
+                    <p class="small">@message.Timestamp</p>
+                    <p>@message.MessageText</p>
+                    <p>@message.NameUser </p>
+                </div>
+                <div class="col-2 my-5">
+                    <button @onclick="() => _editMessage = message" class="btn btn-outline-secondary bi bi-pencil-fill"></button>
+                    <button @onclick="() => _deletedMessage = message" class="btn btn-outline-danger bi bi-trash3-fill"></button>
+                </div>
+            </div>
+        }
+        <div class="row">
+            <div class="col">
+                <label for="messageText">Nová zpráva</label>
+                <textarea id="messageText" @bind="_newMessage.MessageText" class="form-control" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-2">
+                <label for="nameUser">Uživatel</label>
+                <input id="nameUser" @bind="_newMessage.NameUser" class="form-control" />
+            </div>
+            <div class="col-2">
+                <br />
+                <button @onclick="() => CreateMessageAsync()" class="btn btn-outline-primary bi bi-floppy-fill"></button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col">
+                <label for="messageText">Zpráva</label>
+                <textarea id="messageText" @bind="_editMessage.MessageText" class="form-control" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-2">
+                <label for="nameUser">Uživatel</label>
+                <input id="nameUser" @bind="_editMessage.NameUser" class="form-control" />
+            </div>
+            <div class="col-2">
+                <br />
+                <button @onclick="() => EditMessageAsync()" class="btn btn-outline-primary bi bi-floppy-fill"></button>
+            </div>
+        </div>
+    }
+}
+
+@if (_deletedTaskItem != null || _deletedMessage != null || _deletedChecklistItem != null)
+{
+    <div class="modal d-block" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Potvrzení</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Opravdu chcete tento záznam smazat?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Zrušit</button>
+                    @if (_deletedChecklistItem != null)
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="() => DeleteChecklistItemAsync()">Smazat</button>
+                    }
+                    else if (_deletedMessage != null)
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="() => DeleteMessageAsync()">Smazat</button>
+
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="() => DeleteTaskItemAsync()">Smazat</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Ts.ErrorMessage) || !string.IsNullOrEmpty(Ms.ErrorMessage) ||
+!string.IsNullOrEmpty(Chs.ErrorMessage) || !string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-danger">
+        @(Ts.ErrorMessage)
+        @(Ms.ErrorMessage)
+        @(Chs.ErrorMessage)
+        @(_errorMessage)
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    public string edit { get; set; }
+
+    private string _errorMessage;
+
+    private TaskItem _taskItem;
+    private List<ChecklistItem> _checklistItems = new List<ChecklistItem>();
+    private List<Message> _messages = new List<Message>();
+
+    private TaskItem _deletedTaskItem;
+    private ChecklistItem _deletedChecklistItem;
+    private Message _deletedMessage;
+
+    private TaskItem _editTaskItem;
+    private Message _editMessage;
+    private ChecklistItem _editChecklistItem;
+
+    private Message _newMessage = new Message();
+    private ChecklistItem _newChecklistItem = new ChecklistItem();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ClearErrorMessage();
+
+        _taskItem = await Ts.GetTaskItemByIdAsync(id);
+        _messages = await Ms.GetMessagesByTaskIdAsync(id);
+        _checklistItems = await Chs.GetChecklistItemsByTaskIdAsync(id);
+
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("edit", out var edit) && edit == "true")
+            _editTaskItem = _taskItem;
+    }
+
+    private async Task CreateMessageAsync()
+    {
+        await ClearErrorMessage();
+
+        if (!string.IsNullOrWhiteSpace(_newMessage.MessageText) && !string.IsNullOrWhiteSpace(_newMessage.NameUser))
+        {
+            _newMessage.TaskId = id;
+
+            _messages.Add(_newMessage);
+            await Ms.CreateMessageAsync(_newMessage);
+
+            _newMessage = new Message();
+        }
+        else
+            _errorMessage = "Error occurred";
+    }
+    private async Task CreateChecklistItemAsync()
+    {
+        await ClearErrorMessage();
+
+        if (!string.IsNullOrWhiteSpace(_newChecklistItem.Description))
+        {
+            _newChecklistItem.TaskId = id;
+
+            _checklistItems.Add(_newChecklistItem);
+            await Chs.CreateChecklistItemAsync(_newChecklistItem);
+
+            _newChecklistItem = new ChecklistItem();
+        }
+        else
+            _errorMessage = "Error occurred";
+    }
+    private void CloseModal()
+    {
+        ClearErrorMessage();
+
+        _deletedTaskItem = null;
+        _deletedChecklistItem = null;
+        _deletedMessage = null;
+    }
+    private async Task DeleteTaskItemAsync()
+    {
+        await ClearErrorMessage();
+
+        await Ts.DeleteTaskItemAsync(_deletedTaskItem.Id);
+        _deletedTaskItem = null;
+        Navigation.NavigateTo("/");
+    }
+    private async Task EditTaskItemAsync()
+    {
+        await ClearErrorMessage();
+
+        if (!string.IsNullOrWhiteSpace(_editTaskItem.Company) && !string.IsNullOrWhiteSpace(_editTaskItem.Description) &&
+            !string.IsNullOrWhiteSpace(_editTaskItem.Creator) && !string.IsNullOrWhiteSpace(_editTaskItem.Assignee) &&
+            Enum.IsDefined(typeof(TaskItem.PriorityLevel), _editTaskItem.Priority) && Enum.IsDefined(typeof(TaskItem.StatusLevel), _editTaskItem.Status))
+        {
+            {
+                await Ts.EditTaskItemAsync(_taskItem);
+                _taskItem = await Ts.GetTaskItemByIdAsync(id);
+                _editTaskItem = null;
+            }
+        }
+        else
+            _errorMessage = "Error occurred";
+    }
+    private async Task EditMessageAsync()
+    {
+        await ClearErrorMessage();
+
+        if (!string.IsNullOrWhiteSpace(_editMessage.MessageText) && !string.IsNullOrWhiteSpace(_editMessage.NameUser))
+        {
+            await Ms.EditMessageAsync(_editMessage);
+            _messages = await Ms.GetMessagesByTaskIdAsync(id);
+            _editMessage = null;
+        }
+        else
+            _errorMessage = "Error occurred";
+    }
+    private async Task EditChecklistItemAsync()
+    {
+        await ClearErrorMessage();
+
+        if (!string.IsNullOrWhiteSpace(_editChecklistItem.Description))
+        {
+            await Chs.EditChecklistItemAsync(_editChecklistItem);
+            _checklistItems = await Chs.GetChecklistItemsByTaskIdAsync(id);
+            _editChecklistItem = null;
+        }
+        else
+            _errorMessage = "Error occurred";
+    }
+    private async Task DeleteMessageAsync()
+    {
+        await ClearErrorMessage();
+
+
+        await Ms.DeleteMessageByIdAsync(_deletedMessage.Id);
+        _messages = await Ms.GetMessagesByTaskIdAsync(id);
+        _deletedMessage = null;
+    }
+    private async Task DeleteChecklistItemAsync()
+    {
+        await ClearErrorMessage();
+        await Chs.DeleteChecklistItemByIdAsync(_deletedChecklistItem.Id);
+        _checklistItems = await Chs.GetChecklistItemsByTaskIdAsync(id);
+        _deletedChecklistItem = null;
+    }
+    private async Task ClearErrorMessage()
+    {
+        _errorMessage = null;
+        Ts.ErrorMessage = null;
+        Ms.ErrorMessage = null;
+        Chs.ErrorMessage = null;
+    }
+}
